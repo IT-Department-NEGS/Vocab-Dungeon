@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vocab Dungeon: Shared Leaderboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0f0f0f;
+            color: #e0e0e0;
+            overflow: hidden;
+            user-select: none;
+            height: 100dvh; /* Use dynamic viewport height for mobile */
+        }
+        .pixel-font { font-family: 'Press Start 2P', cursive; }
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+        .hit-effect { animation: hitFlash 0.2s; }
+        @keyframes hitFlash { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(255, 0, 0, 0.5); } }
+        .heal-effect { animation: healFlash 0.5s; }
+        @keyframes healFlash { 0%, 100% { background-color: transparent; } 50% { background-color: rgba(0, 255, 100, 0.3); } }
+        .monster-idle { animation: bounce 2s infinite ease-in-out; }
+        .monster-attack { animation: lunge 0.3s ease-in-out; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes lunge { 0% { transform: scale(1) translateY(0); } 50% { transform: scale(1.5) translateY(20px); } 100% { transform: scale(1) translateY(0); } }
+        .floating-text {
+            position: absolute;
+            animation: floatUp 1s ease-out forwards;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 2px 2px 0 #000;
+        }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-50px) scale(1.2); opacity: 0; } }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #2d2d2d; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- MOBILE FOCUS MODE --- */
+        @media (max-width: 768px) {
+            body.mobile-focus #hud-area { display: none !important; }
+            body.mobile-focus #monster-visuals { display: none !important; }
+            body.mobile-focus #skills-area { display: none !important; }
+            body.mobile-focus #word-area { 
+                border: none; 
+                background: transparent; 
+                padding-top: 0;
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+            body.mobile-focus #game-ui { padding: 1rem; }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center bg-gray-950 relative">
+
+    <!-- Background Animation -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800 via-gray-950 to-black opacity-50"></div>
+        <div class="absolute top-10 left-10 w-32 h-32 bg-purple-900 rounded-full blur-[80px] opacity-20 animate-pulse"></div>
+        <div class="absolute bottom-10 right-10 w-40 h-40 bg-red-900 rounded-full blur-[80px] opacity-20 animate-pulse" style="animation-delay: 1s;"></div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="z-10 text-center p-8 bg-gray-900 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] border-2 border-gray-700 max-w-md w-full mx-4">
+        <h1 class="text-3xl md:text-4xl text-yellow-500 mb-2 pixel-font leading-relaxed tracking-tighter">VOCAB DUNGEON</h1>
+        <h2 class="text-sm text-purple-400 mb-6 pixel-font">SHARED EDITION</h2>
+        
+        <!-- Registration Form -->
+        <div class="mb-6 space-y-3 text-left">
+            <div>
+                <label class="text-xs text-gray-400 font-bold uppercase ml-1">Hero Name</label>
+                <input type="text" id="player-name" maxlength="12" class="w-full bg-black border border-gray-600 text-white p-2 rounded focus:border-yellow-500 outline-none" placeholder="Enter Name">
+            </div>
+            <div>
+                <label class="text-xs text-gray-400 font-bold uppercase ml-1">Year Level</label>
+                <select id="player-year" class="w-full bg-black border border-gray-600 text-white p-2 rounded focus:border-yellow-500 outline-none">
+                    <option value="5">Year 5</option>
+                    <option value="6">Year 6</option>
+                    <option value="7">Year 7</option>
+                    <option value="8">Year 8</option>
+                    <option value="9">Year 9</option>
+                    <option value="10">Year 10</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div id="start-error-msg" class="text-red-500 text-xs font-bold h-4 opacity-0 transition-opacity text-center"></div>
+        </div>
+        
+        <div class="space-y-3">
+            <button id="btn-start-game" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-4 px-6 rounded shadow-[0_4px_0_rgb(80,0,0)] active:translate-y-1 active:shadow-none transition-all pixel-font text-xs md:text-sm uppercase">
+                Start Adventure
+            </button>
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btn-study" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-2 rounded shadow-[0_4px_0_rgb(55,65,81)] active:translate-y-1 active:shadow-none transition-all pixel-font text-[10px]">
+                    Study Scroll
+                </button>
+                <button id="btn-leaderboard" class="w-full bg-yellow-700 hover:bg-yellow-600 text-white font-bold py-3 px-2 rounded shadow-[0_4px_0_rgb(113,63,18)] active:translate-y-1 active:shadow-none transition-all pixel-font text-[10px]">
+                    Hall of Fame
+                </button>
+            </div>
+        </div>
+        
+        <!-- Setup Warning (Visible if URL missing) -->
+        <div id="setup-warning" class="mt-4 p-2 bg-red-900/50 border border-red-700 rounded text-[10px] text-red-200 hidden">
+            ⚠️ Google Sheet URL not set in code. Using Local Storage mode.
+        </div>
+    </div>
+
+    <!-- Game UI -->
+    <div id="game-ui" class="hidden z-10 w-full max-w-3xl h-full md:h-auto flex flex-col p-4 relative transition-all">
+        <!-- HUD -->
+        <div id="hud-area" class="flex justify-between items-end mb-2 bg-gray-900/90 p-3 rounded-lg border border-gray-700 shadow-lg backdrop-blur-sm">
+            <div class="flex flex-col gap-1 w-1/3">
+                <div class="flex justify-between text-[10px] text-gray-400 uppercase font-bold">
+                    <span>HP <span id="hp-text" class="text-white">100/100</span></span>
+                    <span>LVL <span id="lvl-text" class="text-yellow-400">1</span></span>
+                </div>
+                <div class="h-3 bg-gray-800 rounded-full overflow-hidden border border-gray-600 relative">
+                    <div id="hp-bar" class="h-full bg-red-600 transition-all duration-300" style="width: 100%"></div>
+                </div>
+                <div class="flex justify-between text-[10px] text-gray-400 uppercase font-bold mt-1">
+                    <span>MANA</span>
+                </div>
+                <div class="h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600 relative">
+                    <div id="mana-bar" class="h-full bg-blue-500 transition-all duration-300" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="flex flex-col items-center mb-1">
+                <div class="pixel-font text-yellow-500 text-xl md:text-2xl drop-shadow-[0_2px_0_rgba(0,0,0,1)]" id="floor-display">FLOOR 1</div>
+                <div id="difficulty-badge" class="text-[10px] font-bold text-blue-400 border border-blue-500 px-2 rounded bg-blue-900/30 mb-1">COMMON</div>
+                <div id="combo-display" class="text-xs font-bold text-purple-400 h-4 opacity-0 transition-opacity">COMBO x2!</div>
+            </div>
+            <div class="flex flex-col gap-1 w-1/3 items-end">
+                <span class="text-[10px] text-gray-400 uppercase font-bold">Experience</span>
+                <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
+                    <div id="xp-bar" class="h-full bg-yellow-500 transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <span id="score-text" class="text-xs font-mono text-gray-400 mt-1">SCORE: 0</span>
+            </div>
+        </div>
+
+        <!-- Battle Arena -->
+        <div id="battle-arena" class="flex-grow flex flex-col items-center relative bg-gray-800/80 rounded-lg border border-gray-700 mb-4 shadow-2xl overflow-hidden transition-all">
+            <div id="boss-badge" class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded hidden animate-pulse border border-red-400">
+                WARNING: BOSS DETECTED
+            </div>
+            
+            <!-- Monster Area (Hides on Mobile Focus) -->
+            <div id="monster-visuals" class="relative w-full flex flex-col items-center justify-center pt-8 pb-4 min-h-[150px] transition-all">
+                <div id="fct-container" class="absolute inset-0 pointer-events-none z-50"></div>
+                <div class="text-6xl md:text-8xl monster-idle filter drop-shadow-2xl transition-transform duration-100 relative z-10" id="monster-icon">👾</div>
+                <div id="monster-hp-container" class="mt-4 flex gap-1 opacity-0 transition-opacity">
+                    <div class="w-3 h-3 bg-red-500 rounded-full border border-black"></div>
+                    <div class="w-3 h-3 bg-red-500 rounded-full border border-black"></div>
+                    <div class="w-3 h-3 bg-red-500 rounded-full border border-black"></div>
+                </div>
+                <div class="w-64 h-4 bg-gray-900 rounded-full border-2 border-gray-600 mt-4 relative overflow-hidden shadow-inner">
+                    <div id="monster-timer-bar" class="h-full bg-orange-600 origin-left" style="width: 0%"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-[8px] font-bold text-white uppercase tracking-wider shadow-black drop-shadow-md">Attack Timer</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Word/Riddle Area (Stays Visible) -->
+            <div id="word-area" class="w-full bg-gray-900/90 p-6 border-t-2 border-gray-700 flex flex-col items-center flex-grow transition-all">
+                <div class="w-full text-center mb-4 flex flex-col items-center">
+                    <button id="btn-hear" class="mb-2 bg-blue-900/50 hover:bg-blue-800 hover:scale-105 text-blue-200 rounded-full py-2 px-6 flex items-center gap-2 border border-blue-500/50 transition-all text-xs font-bold shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                        <span>🔊</span> HEAR WORD
+                    </button>
+                    <p class="text-xs text-blue-400 uppercase tracking-[0.2em] mb-2 font-bold">Definition</p>
+                    <p id="definition-text" class="text-base md:text-xl text-white font-medium leading-relaxed font-serif italic text-gray-200">...</p>
+                </div>
+                <div id="word-display" class="text-2xl md:text-4xl tracking-[0.15em] font-mono text-yellow-400 mb-4 min-h-[3rem] drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">_ _ _ _ _</div>
+                <div class="w-full max-w-md relative mb-2">
+                    <input type="text" id="answer-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                        class="w-full bg-black border-2 border-gray-600 text-white text-center text-xl p-3 rounded focus:outline-none focus:border-yellow-500 focus:shadow-[0_0_15px_rgba(234,179,8,0.3)] uppercase font-mono placeholder-gray-700 transition-colors"
+                        placeholder="TYPE SPELL HERE">
+                </div>
+                <div id="feedback-msg" class="h-5 text-xs font-bold text-center tracking-wider"></div>
+            </div>
+        </div>
+
+        <!-- Skills Bar -->
+        <div id="skills-area" class="grid grid-cols-3 gap-3 w-full">
+            <button id="btn-reveal" class="group relative bg-gray-800 hover:bg-gray-700 border border-purple-900 p-2 rounded transition-all overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed">
+                <div class="absolute bottom-0 left-0 h-1 bg-purple-500 transition-all duration-300" style="width: 0%" id="cd-reveal"></div>
+                <div class="flex flex-col items-center">
+                    <span class="text-xl mb-1">👁️</span><span class="text-[10px] text-purple-300 font-bold pixel-font">REVEAL</span><span class="text-[10px] text-gray-500">25 MANA</span>
+                </div>
+            </button>
+            <button id="btn-flash" class="group relative bg-gray-800 hover:bg-gray-700 border border-blue-900 p-2 rounded transition-all overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed">
+                <div class="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-300" style="width: 0%" id="cd-flash"></div>
+                <div class="flex flex-col items-center">
+                    <span class="text-xl mb-1">⚡</span><span class="text-[10px] text-blue-300 font-bold pixel-font">FLASH</span><span class="text-[10px] text-gray-500">40 MANA</span>
+                </div>
+            </button>
+            <button id="btn-freeze" class="group relative bg-gray-800 hover:bg-gray-700 border border-cyan-900 p-2 rounded transition-all overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed">
+                <div class="absolute bottom-0 left-0 h-1 bg-cyan-500 transition-all duration-300" style="width: 0%" id="cd-freeze"></div>
+                <div class="flex flex-col items-center">
+                    <span class="text-xl mb-1">❄️</span><span class="text-[10px] text-cyan-300 font-bold pixel-font">FREEZE</span><span class="text-[10px] text-gray-500">50 MANA</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over / Win Screen -->
+    <div id="end-screen" class="hidden z-20 absolute inset-0 bg-black/95 flex flex-col items-center justify-center p-8 text-center">
+        <h2 id="end-title" class="text-4xl md:text-6xl mb-4 pixel-font text-red-600 drop-shadow-[0_4px_0_rgba(50,0,0,1)]">YOU DIED</h2>
+        <div class="bg-gray-900 p-6 rounded-lg border border-gray-700 mb-8 w-full max-w-sm">
+            <div class="flex justify-between text-gray-400 mb-2 text-sm font-mono"><span>FLOOR REACHED</span><span id="end-floor" class="text-white font-bold">1</span></div>
+            <div class="flex justify-between text-gray-400 mb-2 text-sm font-mono"><span>LEVEL</span><span id="end-level" class="text-yellow-400 font-bold">1</span></div>
+            <div class="flex justify-between text-gray-400 text-sm font-mono"><span>FINAL SCORE</span><span id="end-score-val" class="text-green-400 font-bold">0</span></div>
+            <hr class="border-gray-700 my-4">
+            <p class="text-xs text-gray-500 uppercase">The word was</p>
+            <p id="end-word" class="text-xl text-white font-bold mt-1 tracking-widest">EXAMPLE</p>
+        </div>
+        <button onclick="location.reload()" class="bg-white hover:bg-gray-200 text-black font-bold py-3 px-8 rounded shadow-[0_0_20px_rgba(255,255,255,0.3)] hover:scale-105 transition-transform pixel-font text-sm">TRY AGAIN</button>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div id="leaderboard-modal" class="hidden z-30 absolute inset-0 bg-gray-950 flex flex-col animate-fade-in">
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900">
+            <h2 id="leaderboard-title" class="text-sm md:text-base font-bold text-yellow-500 pixel-font">HALL OF FAME</h2>
+            <button id="btn-close-leaderboard" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div class="flex-grow overflow-y-auto p-4">
+            <div id="leaderboard-content" class="space-y-2">
+                <p class="text-gray-500 text-center mt-10">Summoning spirits...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Study List Modal -->
+    <div id="study-modal" class="hidden z-30 absolute inset-0 bg-gray-950 flex flex-col animate-fade-in">
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900">
+            <h2 class="text-sm md:text-base font-bold text-yellow-500 pixel-font">ANCIENT KNOWLEDGE</h2>
+            <button id="btn-close-study" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div class="flex-grow overflow-y-auto p-4">
+            <div id="study-list-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        //  SETUP: PASTE YOUR GOOGLE SCRIPT URL HERE
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwt97DppWea8uZkxQIx8oEuAWdIv0dLL5Bkpn2fFuyrln8Fdso2PziiW-fsn2O6F7mG/exec";
+        // ==========================================
+
+        const commonWords = [{w:"aboard",d:"on a ship, train, plane or other vehicle"},{w:"adventure",d:"a wild and exciting undertaking"},{w:"beak",d:"horny projecting mouth of a bird"},{w:"behave",d:"act in a certain manner"},{w:"claw",d:"sharp curved horny process on the toe"},{w:"arrive",d:"reach a destination"},{w:"attach",d:"be in contact with"},{w:"blend",d:"mix together different elements"},{w:"contain",d:"hold or have within"},{w:"crowd",d:"large number of people"},{w:"destroy",d:"do away with"},{w:"discuss",d:"consider or examine in speech"},{w:"enjoy",d:"receive pleasure from"},{w:"example",d:"item typical of a class"},{w:"explain",d:"make plain and comprehensible"},{w:"flap",d:"move in a wavy pattern"},{w:"globe",d:"object with a spherical shape"},{w:"habit",d:"established custom"},{w:"hatch",d:"movable barrier covering entrance"},{w:"insect",d:"small creature with six legs"},{w:"holiday",d:"leisure time away from work"},{w:"length",d:"linear extent in space"},{w:"limb",d:"jointed appendage of an animal"},{w:"local",d:"characteristic of a particular area"},{w:"medium",d:"surrounding environment"},{w:"menu",d:"list of dishes"},{w:"merit",d:"quality of being deserving"},{w:"native",d:"belonging to one by birth"},{w:"naughty",d:"badly behaved"},{w:"nectar",d:"sweet liquid secretion"},{w:"obtain",d:"come into possession of"},{w:"ordinary",d:"lacking special distinction"},{w:"perfect",d:"complete and without defect"},{w:"planet",d:"celestial body revolving around sun"},{w:"plastic",d:"synthetic material"},{w:"platform",d:"raised horizontal surface"},{w:"probably",d:"with considerable certainty"},{w:"problem",d:"question raised for solution"},{w:"purpose",d:"what something is used for"},{w:"migrate",d:"move from one region to another"},{w:"modern",d:"ahead of the times"},{w:"moral",d:"concerned with right and wrong"},{w:"numb",d:"lacking sensation"},{w:"quality",d:"essential attribute"},{w:"recover",d:"regain or make up for"},{w:"region",d:"extended spatial location"},{w:"report",d:"give an account of"},{w:"rescue",d:"free from harm"},{w:"scatter",d:"cause to separate"},{w:"scorch",d:"burn slightly"},{w:"shape",d:"perceptual structure"},{w:"shiny",d:"reflecting light"},{w:"title",d:"name of a work"},{w:"revenge",d:"action taken in return for injury"},{w:"riot",d:"state of disorder"},{w:"ripple",d:"small wave"},{w:"robot",d:"mechanism that moves automatically"},{w:"rodent",d:"mammal having gnawing teeth"},{w:"rude",d:"ill-mannered"},{w:"strip",d:"take off or remove"},{w:"structure",d:"complex entity"},{w:"suddenly",d:"happening unexpectedly"},{w:"surprise",d:"come upon unawares"},{w:"tower",d:"structure taller than diameter"},{w:"vanish",d:"become invisible"},{w:"yoke",d:"frame for carrying buckets"},{w:"wake",d:"stop sleeping"},{w:"worried",d:"afflicted with anxiety"}];
+        const difficultWords = [{w:"abandoned",d:"forsaken by owner or inhabitants"},{w:"absolutely",d:"totally and definitely"},{w:"access",d:"the right to enter"},{w:"acknowledge",d:"admit the existence of"},{w:"actually",d:"in fact"},{w:"adjusted",d:"altered to accommodate"},{w:"advantage",d:"favorable position"},{w:"affect",d:"have an influence upon"},{w:"agency",d:"state of being in action"},{w:"alien",d:"from another place"},{w:"amuse",d:"occupy in pleasant fashion"},{w:"annual",d:"occurring every year"},{w:"barely",d:"in a sparse way"},{w:"bough",d:"larger branch of a tree"},{w:"boulder",d:"large smooth mass of rock"},{w:"boundary",d:"line indicating limit"},{w:"brake",d:"restraint to stop vehicle"},{w:"brethren",d:"members of a religious order"},{w:"brief",d:"short duration"},{w:"category",d:"general concept"},{w:"celebration",d:"joyful occasion"},{w:"character",d:"property defining nature"},{w:"circuit",d:"journey around an area"},{w:"college",d:"institution of higher education"},{w:"community",d:"group living in local area"},{w:"competition",d:"act of contending"},{w:"complain",d:"express discontent"},{w:"complete",d:"having all qualities"},{w:"concern",d:"something important"},{w:"confidence",d:"belief in yourself"},{w:"consider",d:"think about carefully"},{w:"difficult",d:"requiring great effort"},{w:"area",d:"extent of surface"},{w:"assess",d:"estimate quality"},{w:"attachment",d:"act of affixing"},{w:"attempt",d:"make an effort"},{w:"attention",d:"concentrating on something"},{w:"attractive",d:"pleasing to eye"},{w:"auction",d:"public sale"},{w:"author",d:"professional writer"},{w:"autograph",d:"person's signature"},{w:"awesome",d:"inspiring wonder"},{w:"considerate",d:"showing concern for others"},{w:"convince",d:"make realize truth"},{w:"coordinator",d:"someone who organizes"},{w:"creature",d:"living organism"},{w:"crevice",d:"narrow opening"},{w:"criminal",d:"someone who committed crime"},{w:"crystal",d:"solid with regular structure"},{w:"curious",d:"eager to learn"},{w:"damage",d:"change for the worse"},{w:"decision",d:"position reached after thought"},{w:"decorate",d:"make more attractive"},{w:"delicious",d:"pleasing to taste"},{w:"demolish",d:"destroy completely"},{w:"demonstrate",d:"give exhibition of"},{w:"depot",d:"station for goods"},{w:"depression",d:"sunken formation"},{w:"deprived",d:"extreme poverty"},{w:"edible",d:"suitable for food"},{w:"eerie",d:"mysterious"},{w:"effect",d:"phenomenon caused by another"},{w:"effective",d:"producing intended result"},{w:"emerge",d:"come into view"},{w:"endangered",d:"threat of extinction"},{w:"energy",d:"forceful exertion"},{w:"engage",d:"consume attention"},{w:"feature",d:"prominent attribute"},{w:"fellowship",d:"state of being with someone"},{w:"fete",d:"elaborate party"},{w:"fiction",d:"literary work of imagination"},{w:"fierce",d:"extreme and violent"},{w:"formal",d:"accord with conventions"},{w:"fracture",d:"breaking of hard tissue"},{w:"fragile",d:"easily broken"},{w:"frenzied",d: "uncontrolled by reason"},{w:"galaxy",d:"collection of stars"},{w:"generation",d:"group of related organisms"},{w:"gesture",d:"motion to emphasize thought"},{w:"gigantic",d:"exceedingly large"},{w:"glacier",d:"moving mass of ice"},{w:"global",d:"involving entire earth"},{w:"gnaw",d:"bite or chew"},{w:"desert",d:"leave someone"},{w:"dessert",d:"sweet course of meal"},{w:"design",d:"working out form"},{w:"detective",d:"investigator of crimes"},{w:"digest",d:"convert food"},{w:"disappear",d:"become invisible"},{w:"disappointed",d:"sadly unsuccessful"},{w:"discover",d:"determine existence"},{w:"drought",d:"shortage of rainfall"},{w:"enormous",d:"extraordinarily large"},{w:"ensure",d:"make certain"},{w:"episode",d:"distinctive event"},{w:"esteem",d:"condition of being honored"},{w:"exert",d:"put to use"},{w:"expensive",d:"high in price"},{w:"experience",d:"participation in event"},{w:"extremely",d:"greatest possible degree"},{w:"graphic",d:"written or drawn"},{w:"haphazard",d:"dependent upon chance"},{w:"haste",d:"overly eager speed"},{w:"haul",d:"draw slowly"},{w:"healthy",d:"free from disease"},{w:"heir",d:"person entitled to inherit"},{w:"herd",d:"group of cattle"},{w:"hesitate",d:"pause in uncertainty"},{w:"hilarious",d:"extremely funny"},{w:"hoarse",d:"deep harsh sounding"},{w:"honest",d:"marked by truth"},{w:"illegal",d:"prohibited by law"},{w:"imagination",d:"ability to form mental pictures"},{w:"implicate",d:"bring into connection"},{w:"improvement",d:"making better"},{w:"include",d:"have as a part"},{w:"informative",d:"serving to instruct"},{w:"insane",d:"mental derangement"},{w:"insolent",d:"casual disrespect"},{w:"insurance",d:"protection against loss"},{w:"intelligent",d:"high capacity for thought"},{w:"intention",d:"anticipated outcome"},{w:"jeopardy",d:"source of danger"},{w:"jettison",d:"throw away"},{w:"journey",d:"act of traveling"},{w:"kiosk",d:"small area for special use"},{w:"league",d:"association for common action"},{w:"lightning",d:"flash of light"},{w:"litany",d:"series of invocations"},{w:"literacy",d:"ability to read and write"},{w:"lunar",d:"relating to moon"},{w:"hostel",d:"hotel for travelers"},{w:"humorous",d:"causing laughter"},{w:"hygiene",d:"sanitary practices"},{w:"interrupt",d:"make a break in"},{w:"invisible",d:"impossible to see"},{w:"irrational",d:"not using reason"},{w:"issue",d:"situation thought about"},{w:"knowledge",d:"result of learning"},{w:"majestic",d:"displaying dignity"},{w:"martial",d:"suggesting war"},{w:"measure",d:"determine dimensions"},{w:"medicine",d:"profession for injuries"},{w:"medieval",d:"Middle Ages"},{w:"mineral",d:"solid inorganic substance"},{w:"molecule",d:"simplest structural unit"},{w:"molten",d:"reduced to liquid"},{w:"negligent",d:"lack of attention"},{w:"normality",d:"state of being standard"},{w:"notice",d:"act of paying attention"},{w:"oblige",d:"force somebody"},{w:"observe",d:"watch attentively"},{w:"obviously",d:"unmistakably"},{w:"occur",d:"come to pass"},{w:"omit",d:"leave out"},{w:"opportunity",d:"possibility"},{w:"opposition",d:"being against something"},{w:"optimist",d:"person taking favorable view"},{w:"option",d:"choice"},{w:"parallel",d:"everywhere equidistant"},{w:"pedestal",d:"architectural support"},{w:"personality",d:"complex of attributes"},{w:"plait",d:"braided hair"},{w:"precious",d:"high worth"},{w:"predator",d:"animal preying on others"},{w:"presence",d:"current existence"},{w:"prey",d:"animal hunted"},{w:"principal",d:"main"},{w:"principle",d:"basic generalization"},{w:"professor",d:"college teacher"},{w:"punctual",d:"on time"},{w:"pursuit",d:"following to capture"},{w:"muscle",d:"tissue of contractile cells"},{w:"museum",d:"building for valuable objects"},{w:"mysterious",d:"beyond understanding"},{w:"mystery",d:"something unexplained"},{w:"mystic",d:"beyond ordinary understanding"},{w:"myth",d:"traditional story"},{w:"queue",d:"line waiting"},{w:"quaint",d:"attractively old-fashioned"},{w:"quay",d:"wharf"},{w:"quench",d:"satisfy thirst"},{w:"query",d:"question"},{w:"ravine",d:"deep narrow valley"},{w:"realistic",d:"aware of things as they are"},{w:"receive",d:"get something"},{w:"recent",d:"of immediate past"},{w:"recommend",d:"express good opinion"},{w:"relationship",d:"connection between people"},{w:"relevant",d:"having bearing on subject"},{w:"reluctant",d:"not eager"},{w:"remnant",d:"small part remaining"},{w:"scavenger",d:"collector of discarded things"},{w:"scientific",d:"systematic study"},{w:"seize",d:"take hold of"},{w:"shriek",d:"sharp cry"},{w:"signal",d:"action encoding message"},{w:"skeleton",d:"body frame"},{w:"slaughter",d:"killing animals"},{w:"society",d:"cultural organization"},{w:"spectacular",d:"sensational"},{w:"submarine",d:"submersible warship"},{w:"subside",d:"die down"},{w:"success",d:"event accomplishing purpose"},{w:"suitable",d:"meant for use"},{w:"summon",d:"ask to come"},{w:"talon",d:"claw"},{w:"technique",d:"practical method"},{w:"temperature",d:"degree of hotness"},{w:"tension",d:"stretching tight"},{w:"tentacle",d:"flexible appendage"},{w:"terrace",d:"outdoor area"},{w:"territory",d:"region marked off"},{w:"remorse",d:"feeling of regret"},{w:"replenish",d:"fill again"},{w:"require",d:"have need of"},{w:"resource",d:"aid or support"},{w:"responsible",d:"worthy of trust"},{w:"rhyme",d:"correspondence in sound"},{w:"ridiculous",d:"absurd"},{w:"rogue",d:"deceitful scoundrel"},{w:"surrounded",d:"confined"},{w:"survive",d:"continue in existence"},{w:"treasure",d:"valued possession"},{w:"uncomfortable",d:"experiencing unease"},{w:"unfortunately",d:"by bad luck"},{w:"unique",d:"single one of kind"},{w:"urban",d:"relating to city"},{w:"urgency",d:"insistent necessity"},{w:"useless",d:"no utility"},{w:"verdant",d:"abundance of vegetation"},{w:"vessel",d:"container"},{w:"wary",d:"marked by caution"},{w:"weary",d:"fatigued"},{w:"weigh",d:"have heft"},{w:"weird",d:"strikingly odd"},{w:"wholly",d:"entirely"},{w:"wonderful",d:"extraordinarily good"},{w:"violence",d:"turbulent state"},{w:"vision",d:"ability to see"},{w:"voyage",d:"journey"},{w:"yearn",d:"desire strongly"},{w:"yield",d:"give or supply"},{w:"zenith",d:"highest point"},{w:"zoology",d:"study of animals"}];
+        const challengingWords = [{w:"acceleration",d:"an increase in rate of change"},{w:"accumulate",d:"get or gather together"},{w:"acquire",d:"come into the possession of something"},{w:"acquisition",d:"something gained"},{w:"adolescent",d:"a person who is older than 12 but younger than 20"},{w:"adrenaline",d:"hormone secreted in response to stress"},{w:"advantageous",d:"giving a benefit"},{w:"aisle",d:"a long narrow passage"},{w:"ambiguous",d:"having more than one possible meaning"},{w:"annihilate",d:"kill in large numbers"},{w:"appreciate",d:"be fully aware of; realize fully"},{w:"appropriate",d:"suitable for a particular person, place, or situation"},{w:"artificial",d:"contrived by art rather than nature"},{w:"associate",d:"bring or come into action"},{w:"awkwardly",d:"in a clumsy manner"},{w:"basically",d:"in essence"},{w:"belligerence",d:"hostile or warlike attitude"},{w:"beneficial",d:"promoting or enhancing well-being"},{w:"benefit",d:"something that aids or promotes well-being"},{w:"benevolent",d:"showing or motivated by sympathy"},{w:"biodegradable",d:"capable of being decomposed"},{w:"blase",d:"nonchalantly unconcerned"},{w:"brevity",d:"the attribute of being short or fleeting"},{w:"brilliance",d:"the quality of being extremely bright"},{w:"brusque",d:"rudely abrupt or blunt in speech"},{w:"camouflage",d:"outward semblance misrepresenting nature"},{w:"changeable",d:"subject to change"},{w:"colloquial",d:"informal spoken language"},{w:"colossal",d:"so great in size or force"},{w:"column",d:"a line of units following one after another"},{w:"complementary",d:"serving to fill out or enhance"},{w:"conscience",d:"motivation deriving from ethical principles"},{w:"conscious",d:"having awareness of surroundings"},{w:"consequently",d:"as a result"},{w:"controversial",d:"capable of causing disagreement"},{w:"controversy",d:"a dispute with strong disagreement"},{w:"correspond",d:"take the place of or be parallel to"},{w:"courageous",d:"able to face danger without flinching"},{w:"cylinder",d:"surface generated by rotating a line"},{w:"debris",d:"remains of something destroyed"},{w:"deficient",d:"inadequate in amount or degree"},{w:"definite",d:"precise; explicit and clearly defined"},{w:"dependency",d:"relying on someone else"},{w:"desperate",d:"frightened and in need of help"},{w:"disadvantageously",d:"in a way that creates a disadvantage"},{w:"discipline",d:"system of rules of conduct"},{w:"dramatically",d:"with respect to dramatic value"},{w:"effervescent",d:"giving off bubbles"},{w:"efficient",d:"effective without wasting time"},{w:"embarrassed",d:"feeling uneasy and self-conscious"},{w:"endeavour",d:"a purposeful undertaking"},{w:"environment",d:"totality of surrounding conditions"},{w:"ethically",d:"in an ethical manner"},{w:"euphoric",d:"feeling of well-being or elation"},{w:"exaggerate",d:"enlarge beyond bounds or truth"},{w:"exhilarating",d:"making lively and joyful"},{w:"explanatory",d:"serving to make clear"},{w:"facilitate",d:"make easier"},{w:"fascinating",d:"capable of arousing attention"},{w:"fluorescent",d:"emitting light during exposure to radiation"},{w:"fulfill",d:"meet a want or need"},{w:"fulfilled",d:"completed to perfection"},{w:"gauge",d:"instrument for measuring"},{w:"generalisation",d:"formulating general concepts"},{w:"grandeur",d:"quality of being magnificent"},{w:"guarantee",d:"unconditional commitment"},{w:"guillotine",d:"instrument of execution"},{w:"haemoglobin",d:"protein in red blood cells"},{w:"hallucinate",d:"perceive what is not actually there"},{w:"humanitarian",d:"devotion to popular welfare"},{w:"inconsequential",d:"lacking worth or importance"},{w:"inconsolable",d:"sad beyond comforting"},{w:"incorporate",d:"make part of a whole"},{w:"indecipherable",d:"not easily decoded"},{w:"interrogate",d:"pose a series of questions"},{w:"intrigue",d:"crafty plot to achieve ends"},{w:"invulnerable",d:"immune to attack"},{w:"iridescent",d:"varying in color"},{w:"irrelevant",d:"having no bearing on the subject"},{w:"irresponsible",d:"showing lack of care"},{w:"judicial",d:"expressing careful judgment"},{w:"juxtapose",d:"place side by side"},{w:"kaleidoscope",d:"optical toy in a tube"},{w:"leisure",d:"time for relaxation"},{w:"liquefy",d:"make solid into fluid"},{w:"litigious",d:"relating to legal proceedings"},{w:"longevity",d:"having lived for a long time"},{w:"luminescent",d:"emitting light not caused by heat"},{w:"magnificent",d:"characterized by grandeur"},{w:"manageable",d:"capable of being controlled"},{w:"manoeuvre",d:"move skillfully"},{w:"mathematician",d:"person skilled in math"},{w:"mediaeval",d:"relating to Middle Ages"},{w:"miniature",d:"very small scale"},{w:"mischievous",d:"naughtily playful"},{w:"misconstrue",d:"interpret wrongly"},{w:"naivete",d:"lack of sophistication"},{w:"narcissist",d:"excessively self-centered"},{w:"necessary",d:"absolutely essential"},{w:"nonchalant",d:"casual unconcern"},{w:"noticeable",d:"capable of being detected"},{w:"notoriety",d:"known for unfavorable quality"},{w:"nuisance",d:"anything that disturbs"},{w:"obnoxious",d:"causing disapproval"},{w:"obscure",d:"not clearly understood"},{w:"obsessive",d:"compulsive preoccupation"},{w:"occasionally",d:"now and then"},{w:"occurrence",d:"instance of something happening"},{w:"opaque",d:"not transmitting light"},{w:"opinionated",d:"obstinate in opinions"},{w:"outrageous",d:"exceeding bounds of reason"},{w:"parallel",d:"everywhere equidistant"},{w:"peculiar",d:"deviating from the usual"},{w:"pessimistic",d:"expecting worst outcome"},{w:"physically",d:"accord with physical laws"},{w:"possess",d:"have ownership of"},{w:"prevalence",d:"quality of being widespread"},{w:"privileged",d:"blessed with advantages"},{w:"psychiatrist",d:"mental disorder specialist"},{w:"psychology",d:"science of mental life"},{w:"queue",d:"line of people waiting"},{w:"quiescent",d:"quiet or inactive"},{w:"racquet",d:"sports implement"},{w:"rancour",d:"deep bitter anger"},{w:"realistically",d:"in a realistic manner"},{w:"reminiscent",d:"serving to bring to mind"},{w:"remuneration",d:"payment for services"},{w:"responsibility",d:"social force binding to action"},{w:"resurrect",d:"cause to become alive again"},{w:"resuscitate",d:"cause to regain consciousness"},{w:"rhythm",d:"recurring sequence"},{w:"ricochet",d:"spring back from impact"},{w:"rigorous",d:"strict"},{w:"sabotage",d:"deliberate destruction"},{w:"sanctuary",d:"consecrated place"},{w:"scintillate",d:"emit light in flickering manner"},{w:"separate",d:"standing apart"},{w:"significance",d:"quality of being important"},{w:"silhouette",d:"filled-in outline"},{w:"sovereign",d:"nation's ruler"},{w:"stationary",d:"not capable of being moved"},{w:"stereotypically",d:"in a stereotypical manner"},{w:"strategically",d:"with regard to strategy"},{w:"subtle",d:"difficult to detect"},{w:"subtlety",d:"quality of being subtle"},{w:"sufficient",d:"fulfilling a need"},{w:"telekinesis",d:"moving objects by thinking"},{w:"temperamental",d:"varying moods"},{w:"temporary",d:"not permanent"},{w:"therapeutic",d:"tending to cure"},{w:"thoroughly",d:"exhaustively"},{w:"tournament",d:"series of games"},{w:"tsunami",d:"destructive sea wave"},{w:"ubiquitous",d:"present everywhere"},{w:"unconscious",d:"lacking awareness"},{w:"unnecessary",d:"not needed"},{w:"vertebrate",d:"having a backbone"},{w:"vicious",d:"nature of evildoing"},{w:"vulnerable",d:"capable of being hurt"},{w:"waive",d:"do without"},{w:"willful",d:"done by design"},{w:"wondrous",d:"extraordinarily good"},{w:"wraith",d:"ghostly figure"},{w:"wrought",d:"shaped to fit"},{w:"zephyr",d:"slight wind"}
+        ];
+
+        const monsters = ["👾", "👹", "👻", "🐉", "🧛", "🧟", "🧞", "🕷️", "🦕", "👽", "🤖", "🤡"];
+        const bossMonsters = ["👑", "🦖", "🐲", "🦑", "👺"];
+
+        class VocabDungeon {
+            constructor() {
+                this.currentIndex = 0;
+                this.currentPool = [];
+                this.seenWords = new Set(); // Track used words
+                
+                // Manual Pronunciation Fixes
+                this.pronunciationOverrides = {
+                    "blase": "blasé",
+                    "fete": "fête",
+                    "quay": "key",
+                    "heir": "air",
+                    "naive": "naïve",
+                    "facade": "façade",
+                    "cliche": "cliché",
+                    "debris": "deb-ree",
+                    "crevice": "crev-iss",
+                    "draught": "draft",
+                    "zephyr": "zeff-er",
+                    "colonel": "kernel",
+                    "hyperbole": "high-per-bo-lee",
+                    "epitome": "ee-pit-uh-me",
+                    "scimitar": "sim-it-ar",
+                    "chaos": "kay-os",
+                    "scheme": "skeem",
+                    "scythe": "sythe",
+                    "gnaw": "naw",
+                    "knell": "nell",
+                    "numb": "num",
+                    "sword": "sord",
+                    "yacht": "yot",
+                    "silhouette": "sill-oo-et",
+                    "aisle": "isle"
+                };
+
+                // Player Data
+                this.playerName = "";
+                this.playerYear = "";
+                this.maxHp = 100;
+                this.hp = 100;
+                this.maxMana = 100;
+                this.mana = 100;
+                this.level = 1;
+                this.xp = 0;
+                this.maxXp = 100;
+                this.score = 0;
+                this.combo = 0;
+                this.correctWord = "";
+                this.revealedIndices = new Set();
+                this.monsterState = { maxHp: 1, hp: 1, timer: 0, timeLimit: 15000, isBoss: false, frozen: false };
+                this.lastFrameTime = 0;
+                this.gameActive = false;
+                this.animationFrameId = null;
+
+                this.inputEl = document.getElementById('answer-input');
+                this.inputEl.addEventListener('keyup', (e) => { if(e.key === 'Enter') this.checkAnswer(); });
+
+                // ADDED: Mobile Focus Mode
+                this.inputEl.addEventListener('focus', () => {
+                    if (window.innerWidth < 768) {
+                        document.body.classList.add('mobile-focus');
+                    }
+                });
+                
+                this.inputEl.addEventListener('blur', () => {
+                    document.body.classList.remove('mobile-focus');
+                });
+
+                document.getElementById('btn-start-game').addEventListener('click', () => this.validateAndStart());
+                document.getElementById('btn-study').addEventListener('click', () => this.showWordList());
+                document.getElementById('btn-leaderboard').addEventListener('click', () => this.showLeaderboard());
+                document.getElementById('btn-close-leaderboard').addEventListener('click', () => this.hideLeaderboard());
+                document.getElementById('btn-close-study').addEventListener('click', () => this.hideWordList());
+                document.getElementById('btn-hear').addEventListener('click', () => this.speakWord());
+                document.getElementById('btn-reveal').addEventListener('click', () => this.useSkill('reveal'));
+                document.getElementById('btn-flash').addEventListener('click', () => this.useSkill('flash'));
+                document.getElementById('btn-freeze').addEventListener('click', () => this.useSkill('freeze'));
+                
+                // Check for URL
+                if(!GOOGLE_SCRIPT_URL) {
+                    document.getElementById('setup-warning').classList.remove('hidden');
+                }
+            }
+
+            validateAndStart() {
+                const nameInput = document.getElementById('player-name');
+                const yearInput = document.getElementById('player-year');
+                const errorMsg = document.getElementById('start-error-msg');
+                
+                // 1. Basic Empty Check
+                if(!nameInput.value.trim()) {
+                    this.showError("Please enter your Hero Name!");
+                    return;
+                }
+
+                // 2. Profanity Filter
+                const lowerName = nameInput.value.trim().toLowerCase();
+                // Add more words to this list as needed
+                const profanityList = [
+                    "fuck", "shit", "bitch", "cunt", "dick", "piss", "cock", "pussy", "asshole", "fag", "slut", "whore", "nigger", "bastard", "damn", "crap", "sex", "nude"
+                ];
+
+                // Check if name contains any bad word
+                const hasProfanity = profanityList.some(word => lowerName.includes(word));
+
+                if (hasProfanity) {
+                    this.showError("Please choose an appropriate Name!");
+                    return;
+                }
+
+                this.playerName = nameInput.value.trim();
+                this.playerYear = yearInput.value;
+                this.start();
+            }
+
+            showError(msg) {
+                const errorMsg = document.getElementById('start-error-msg');
+                errorMsg.innerText = msg;
+                errorMsg.classList.remove('opacity-0');
+                errorMsg.classList.add('shake');
+                setTimeout(() => errorMsg.classList.remove('shake'), 400);
+            }
+
+            start() {
+                this.level = 1;
+                this.hp = 100;
+                this.mana = 100;
+                this.score = 0;
+                this.xp = 0;
+                this.maxXp = 100;
+                this.combo = 0;
+                this.gameActive = true;
+                this.currentIndex = 0;
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('game-ui').classList.remove('hidden');
+                document.getElementById('game-ui').classList.add('flex');
+                document.getElementById('end-screen').classList.add('hidden');
+                this.updateStatsUI();
+                this.startLevel();
+                this.lastFrameTime = performance.now();
+                this.gameLoop(this.lastFrameTime);
+            }
+
+            saveScore() {
+                // Mode Switch: Online vs Offline
+                if (GOOGLE_SCRIPT_URL) {
+                    console.log("Uploading score to Google Sheet...");
+                    fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Important for Google Apps Script
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: this.playerName,
+                            year: this.playerYear,
+                            score: this.score,
+                            floor: this.currentIndex + 1
+                        })
+                    }).then(() => console.log("Score uploaded"))
+                      .catch(err => console.error("Upload failed", err));
+                } else {
+                    // Fallback to Local Storage
+                    try {
+                        const scores = JSON.parse(localStorage.getItem('vocabDungeonScores') || '[]');
+                        scores.push({
+                            name: this.playerName,
+                            year: this.playerYear,
+                            score: this.score,
+                            floor: this.currentIndex + 1,
+                            timestamp: new Date().toISOString()
+                        });
+                        localStorage.setItem('vocabDungeonScores', JSON.stringify(scores));
+                        console.log("Score saved locally!");
+                    } catch(e) { console.error("Error saving local score", e); }
+                }
+            }
+
+            showLeaderboard() {
+                document.getElementById('leaderboard-modal').classList.remove('hidden');
+                const content = document.getElementById('leaderboard-content');
+                const title = document.getElementById('leaderboard-title');
+                content.innerHTML = '<p class="text-gray-500 text-center mt-10">Summoning spirits...</p>';
+
+                if (GOOGLE_SCRIPT_URL) {
+                    title.innerText = "HALL OF FAME (GLOBAL)";
+                    fetch(GOOGLE_SCRIPT_URL + "?action=getScores")
+                    .then(response => {
+                        if (!response.ok) throw new Error("Network response was not ok");
+                        return response.json();
+                    })
+                    .then(data => this.renderLeaderboard(data))
+                    .catch(err => {
+                        console.error("Fetch error:", err);
+                        content.innerHTML = `<p class="text-red-500 text-center mt-10">Connection to the spirits failed.<br><br><span class="text-xs text-gray-500">Error: ${err.message}<br>Check console for details.</span></p>`;
+                    });
+                } else {
+                    title.innerText = "HALL OF FAME (LOCAL)";
+                    try {
+                        let scores = JSON.parse(localStorage.getItem('vocabDungeonScores') || '[]');
+                        this.renderLeaderboard(scores);
+                    } catch (e) {
+                        content.innerHTML = '<p class="text-red-500 text-center mt-10">Failed to read ancient scrolls.</p>';
+                    }
+                }
+            }
+            
+            renderLeaderboard(scores) {
+            hideLeaderboard() {
+                document.getElementById('leaderboard-modal').classList.add('hidden');
+            }
+
+            getWordForLevel() {
+                let sourceArray;
+                if (this.level === 1) sourceArray = commonWords;
+                else if (this.level === 2) sourceArray = difficultWords;
+                else sourceArray = challengingWords;
+
+                // Filter out words we have already seen
+                let available = sourceArray.filter(item => !this.seenWords.has(item.w));
+
+                // If we have used every word in this list, recycle them (allow repeats)
+                if (available.length === 0) {
+                    // Ideally we only clear the words from *this* list from the set
+                    sourceArray.forEach(item => this.seenWords.delete(item.w));
+                    available = sourceArray;
+                }
+
+                // Pick random from the available pool
+                const selected = available[Math.floor(Math.random() * available.length)];
+                
+                // Mark as seen
+                this.seenWords.add(selected.w);
+                
+                return selected;
+            }
+
+            startLevel() {
+                const currentData = this.getWordForLevel();
+                this.correctWord = currentData.w.toLowerCase();
+                this.revealedIndices.clear();
+                const floor = this.currentIndex + 1;
+                const isBoss = floor % 5 === 0;
+                document.getElementById('floor-display').innerText = `FLOOR ${floor}`;
+                const badge = document.getElementById('difficulty-badge');
+                if (this.level === 1) { badge.innerText = "COMMON"; badge.className = "text-[10px] font-bold text-blue-400 border border-blue-500 px-2 rounded bg-blue-900/30 mb-1"; }
+                else if (this.level === 2) { badge.innerText = "DIFFICULT"; badge.className = "text-[10px] font-bold text-green-400 border border-green-500 px-2 rounded bg-green-900/30 mb-1"; }
+                else { badge.innerText = "CHALLENGING"; badge.className = "text-[10px] font-bold text-red-400 border border-red-500 px-2 rounded bg-red-900/30 animate-pulse mb-1"; }
+                this.monsterState = { isBoss: isBoss, maxHp: isBoss ? 3 : 1, hp: isBoss ? 3 : 1, timer: 0, timeLimit: Math.max(5000, 12000 - (this.level * 200)), frozen: false };
+                document.getElementById('definition-text').innerText = currentData.d;
+                document.getElementById('monster-icon').innerText = isBoss ? bossMonsters[Math.floor(Math.random() * bossMonsters.length)] : monsters[Math.floor(Math.random() * monsters.length)];
+                const bossBadge = document.getElementById('boss-badge');
+                if(isBoss) { bossBadge.classList.remove('hidden'); document.getElementById('monster-hp-container').classList.remove('opacity-0'); this.updateMonsterHpUI(); document.getElementById('monster-icon').classList.add('scale-125'); }
+                else { bossBadge.classList.add('hidden'); document.getElementById('monster-hp-container').classList.add('opacity-0'); document.getElementById('monster-icon').classList.remove('scale-125'); }
+                document.getElementById('feedback-msg').innerText = "";
+                this.inputEl.value = "";
+                this.inputEl.focus();
+                this.renderWordMask();
+                this.speakWord();
+            }
+            nextWordInBattle() {
+                const currentData = this.getWordForLevel();
+                this.correctWord = currentData.w.toLowerCase();
+                this.revealedIndices.clear();
+                this.monsterState.frozen = false;
+                document.getElementById('definition-text').innerText = currentData.d;
+                this.inputEl.value = "";
+                this.renderWordMask();
+                this.speakWord();
+            }
+            speakWord() { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(this.correctWord); utterance.lang = 'en-AU'; utterance.rate = 0.9; window.speechSynthesis.speak(utterance); } }
+            gameLoop(currentTime) {
+                if(!this.gameActive) return;
+                const deltaTime = currentTime - this.lastFrameTime;
+                this.lastFrameTime = currentTime;
+                if (!this.monsterState.frozen) this.monsterState.timer += deltaTime;
+                const percent = (this.monsterState.timer / this.monsterState.timeLimit) * 100;
+                const bar = document.getElementById('monster-timer-bar');
+                bar.style.width = `${Math.min(100, percent)}%`;
+                if(percent > 75) bar.className = "h-full bg-red-600 animate-pulse origin-left";
+                else if (percent > 50) bar.className = "h-full bg-orange-500 origin-left";
+                else bar.className = "h-full bg-green-500 origin-left";
+                if (this.monsterState.timer >= this.monsterState.timeLimit) this.monsterAttack();
+                this.animationFrameId = requestAnimationFrame((t) => this.gameLoop(t));
+            }
+            monsterAttack() {
+                this.monsterState.timer = 0;
+                const monster = document.getElementById('monster-icon');
+                monster.classList.remove('monster-idle');
+                void monster.offsetWidth;
+                monster.classList.add('monster-attack');
+                setTimeout(() => monster.classList.remove('monster-attack'), 300);
+                setTimeout(() => monster.classList.add('monster-idle'), 300);
+                const damage = Math.floor(15 + (this.level * 2));
+                this.hp -= damage;
+                this.combo = 0;
+                this.spawnFloatingText(`-${damage}`, 'text-red-500', monster);
+                document.body.classList.add('shake'); document.body.classList.add('hit-effect');
+                setTimeout(() => { document.body.classList.remove('shake'); document.body.classList.remove('hit-effect'); }, 400);
+                this.updateStatsUI();
+                if (this.hp <= 0) this.endGame(false);
+            }
+            checkAnswer() {
+                if(!this.gameActive) return;
+                const userGuess = this.inputEl.value.trim().toLowerCase();
+                const feedback = document.getElementById('feedback-msg');
+                if (userGuess === this.correctWord) {
+                    this.spawnFloatingText("CRITICAL!", "text-yellow-400", this.inputEl);
+                    this.combo++;
+                    const manaGain = 10 + (this.combo * 2);
+                    this.mana = Math.min(this.maxMana, this.mana + manaGain);
+                    this.monsterState.hp--;
+                    this.monsterState.timer = 0; 
+                    const xpGain = 20 + (this.combo * 5);
+                    this.gainXp(xpGain);
+                    this.score += xpGain;
+                    feedback.innerText = `NICE! +${xpGain} XP`;
+                    feedback.className = "h-5 text-xs font-bold text-center text-green-400 tracking-wider";
+                    if (this.monsterState.hp <= 0) { this.currentIndex++; this.startLevel(); }
+                    else { this.updateMonsterHpUI(); this.spawnFloatingText("IT'S STILL STANDING!", "text-orange-500", document.getElementById('monster-icon')); this.nextWordInBattle(); }
+                } else {
+                    this.combo = 0;
+                    this.monsterState.timer += 2000; 
+                    this.spawnFloatingText("MISS!", "text-gray-400", this.inputEl);
+                    feedback.innerText = "WRONG! ENEMY CHARGES UP!";
+                    feedback.className = "h-5 text-xs font-bold text-center text-red-500 tracking-wider";
+                    this.inputEl.classList.add('shake');
+                    setTimeout(() => this.inputEl.classList.remove('shake'), 400);
+                }
+                this.updateStatsUI();
+            }
+            gainXp(amount) { this.xp += amount; if(this.xp >= this.maxXp) { this.levelUp(); } this.updateStatsUI(); }
+            levelUp() {
+                this.level++; this.xp -= this.maxXp; this.maxXp = Math.floor(this.maxXp * 1.5);
+                this.maxHp += 20; this.hp = this.maxHp; this.maxMana += 10; this.mana = this.maxMana;
+                this.spawnFloatingText("LEVEL UP!", "text-yellow-300 text-2xl", document.getElementById('game-ui'));
+                document.body.classList.add('heal-effect'); setTimeout(() => document.body.classList.remove('heal-effect'), 500);
+                this.updateStatsUI();
+            }
+            useSkill(type) {
+                const feedback = document.getElementById('feedback-msg');
+                if (type === 'reveal') {
+                    if (this.mana >= 25) {
+                        const unrevealed = [];
+                        for(let i=0; i<this.correctWord.length; i++) { if(!this.revealedIndices.has(i) && this.correctWord[i] !== ' ' && this.correctWord[i] !== '-') unrevealed.push(i); }
+                        if(unrevealed.length > 0) { this.mana -= 25; const idx = unrevealed[Math.floor(Math.random() * unrevealed.length)]; this.revealedIndices.add(idx); this.renderWordMask(); }
+                    }
+                } else if (type === 'flash') {
+                    if (this.mana >= 40) {
+                        this.mana -= 40;
+                        const originalText = document.getElementById('word-display').innerText;
+                        document.getElementById('word-display').innerText = this.correctWord.split('').join(' ');
+                        document.getElementById('word-display').classList.add('text-blue-400');
+                        setTimeout(() => { this.renderWordMask(); document.getElementById('word-display').classList.remove('text-blue-400'); }, 800);
+                    }
+                } else if (type === 'freeze') {
+                    if (this.mana >= 50) {
+                        this.mana -= 50; this.monsterState.frozen = true;
+                        this.spawnFloatingText("FROZEN!", "text-cyan-300", document.getElementById('monster-icon'));
+                        document.getElementById('monster-timer-bar').classList.add('bg-cyan-500');
+                        setTimeout(() => { this.monsterState.frozen = false; }, 5000);
+                    }
+                }
+                this.updateStatsUI();
+            }
+            renderWordMask() {
+                let display = "";
+                for (let i = 0; i < this.correctWord.length; i++) {
+                    if (this.revealedIndices.has(i) || this.correctWord[i] === ' ' || this.correctWord[i] === '-') display += this.correctWord[i] + " ";
+                    else display += "_ ";
+                }
+                document.getElementById('word-display').innerText = display;
+            }
+            spawnFloatingText(text, colorClass, targetElement) {
+                const container = document.getElementById('fct-container');
+                const rect = targetElement.getBoundingClientRect();
+                const parentRect = document.getElementById('game-ui').getBoundingClientRect();
+                const el = document.createElement('div');
+                el.className = `floating-text ${colorClass} text-xl`;
+                el.innerText = text;
+                el.style.left = (rect.left - parentRect.left + (rect.width/2) - 20) + 'px';
+                el.style.top = (rect.top - parentRect.top) + 'px';
+                container.appendChild(el);
+                setTimeout(() => el.remove(), 1000);
+            }
+            updateMonsterHpUI() {
+                if(!this.monsterState.isBoss) return;
+                const container = document.getElementById('monster-hp-container');
+                container.innerHTML = '';
+                for(let i=0; i<this.monsterState.maxHp; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = `w-3 h-3 rounded-full border border-black ${i < this.monsterState.hp ? 'bg-red-600' : 'bg-gray-700'}`;
+                    container.appendChild(dot);
+                }
+            }
+            updateStatsUI() {
+                document.getElementById('hp-bar').style.width = `${(this.hp / this.maxHp) * 100}%`;
+                document.getElementById('hp-text').innerText = `${this.hp}/${this.maxHp}`;
+                document.getElementById('mana-bar').style.width = `${(this.mana / this.maxMana) * 100}%`;
+                document.getElementById('xp-bar').style.width = `${(this.xp / this.maxXp) * 100}%`;
+                document.getElementById('lvl-text').innerText = this.level;
+                document.getElementById('score-text').innerText = `SCORE: ${this.score}`;
+                const comboEl = document.getElementById('combo-display');
+                if(this.combo > 1) { comboEl.innerText = `COMBO x${this.combo}!`; comboEl.classList.remove('opacity-0'); }
+                else { comboEl.classList.add('opacity-0'); }
+                document.getElementById('btn-reveal').style.opacity = this.mana >= 25 ? 1 : 0.5;
+                document.getElementById('btn-flash').style.opacity = this.mana >= 40 ? 1 : 0.5;
+                document.getElementById('btn-freeze').style.opacity = this.mana >= 50 ? 1 : 0.5;
+            }
+            endGame(win) {
+                this.gameActive = false;
+                cancelAnimationFrame(this.animationFrameId);
+                const screen = document.getElementById('end-screen');
+                const title = document.getElementById('end-title');
+                screen.classList.remove('hidden');
+                document.getElementById('end-floor').innerText = this.currentIndex + 1;
+                document.getElementById('end-level').innerText = this.level;
+                document.getElementById('end-score-val').innerText = this.score;
+                document.getElementById('end-word').innerText = this.correctWord.toUpperCase();
+                if (win) { title.innerText = "VICTORY!"; title.className = "text-4xl md:text-6xl mb-4 pixel-font text-yellow-400"; }
+                else { title.innerText = "YOU DIED"; title.className = "text-4xl md:text-6xl mb-4 pixel-font text-red-600"; }
+                this.saveScore();
+            }
+            showWordList() {
+                const content = document.getElementById('study-list-content');
+                content.innerHTML = '';
+                const allWords = [...commonWords, ...difficultWords, ...challengingWords];
+                const uniqueWords = Array.from(new Map(allWords.map(item => [item.w, item])).values());
+                uniqueWords.sort((a, b) => a.w.localeCompare(b.w));
+                uniqueWords.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 p-3 rounded border border-gray-700 hover:bg-gray-700 transition';
+                    card.innerHTML = `<h3 class="text-yellow-500 font-bold capitalize text-sm">${item.w}</h3><p class="text-xs text-gray-400">${item.d}</p>`;
+                    content.appendChild(card);
+                });
+                document.getElementById('study-modal').classList.remove('hidden');
+            }
+            hideWordList() { document.getElementById('study-modal').classList.add('hidden'); }
+        }
+        const game = new VocabDungeon();
+    </script>
+</body>
+</html>
