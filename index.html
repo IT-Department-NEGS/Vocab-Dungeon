@@ -46,140 +46,132 @@
         .animate-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* --- MOBILE FOCUS MODE REVISED V2 --- */
+        /* --- MOBILE FOCUS MODE V3 (Optimized Layout) --- */
         @media (max-width: 768px) {
-            /* Global Layout in Focus Mode */
+            /* Overall Container */
             body.mobile-focus #game-ui {
                 padding: 4px;
-                justify-content: flex-start;
-                gap: 4px;
+                gap: 0;
+                display: flex;
+                flex-direction: column;
+                height: 100%;
             }
 
-            /* 1. Compact HUD */
+            /* 1. HUD: Ultra slim strip at top */
             body.mobile-focus #hud-area {
                 padding: 4px 8px;
-                margin-bottom: 0;
-                width: 100%;
+                margin-bottom: 4px;
                 flex-shrink: 0;
-                background: rgba(17, 24, 39, 0.95);
+                background: #1f2937;
+                min-height: 40px;
             }
-            body.mobile-focus #hud-area .text-[10px] { font-size: 8px; }
-            body.mobile-focus #hp-bar, body.mobile-focus #mana-bar, body.mobile-focus #xp-bar { height: 4px; }
-            body.mobile-focus #floor-display { font-size: 0.8rem; }
-            body.mobile-focus #combo-display { display: none; } /* Hide combo text to save vertical space */
-            body.mobile-focus #difficulty-badge { display: none; } /* Hide difficulty badge */
+            body.mobile-focus #hud-area .flex-col { gap: 1px; }
+            body.mobile-focus #hp-bar, body.mobile-focus #mana-bar, body.mobile-focus #xp-bar { height: 4px; border-radius: 2px; }
+            body.mobile-focus .text-[10px] { font-size: 8px; }
+            body.mobile-focus #floor-display { font-size: 0.7rem; }
+            body.mobile-focus #combo-display, body.mobile-focus #difficulty-badge { display: none; } /* Hide extras */
 
-            /* 2. Compact Monster & Timer */
-            body.mobile-focus #monster-visuals {
-                display: flex !important;
-                min-height: 0;
-                padding: 0;
-                margin: 0;
-                flex-grow: 0;
-                flex-shrink: 0;
-                flex-direction: row; /* Horizontal layout for monster/timer */
-                justify-content: center;
+            /* 2. Combined Monster + Definition Row */
+            body.mobile-focus #battle-arena {
+                display: flex;
+                flex-direction: row; /* Side by side */
                 align-items: center;
-                gap: 12px;
-                background: transparent;
-            }
-            body.mobile-focus #monster-icon {
-                font-size: 2.5rem; /* Tiny Monster */
-                line-height: 1;
-                filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
-            }
-            body.mobile-focus #monster-hp-container {
-                display: none; /* Hide dots for space */
-            }
-            /* Wrapper for timer to sit beside monster */
-            body.mobile-focus #monster-visuals .w-64 {
-                width: 100px; 
-                height: 8px;
-                margin-top: 0;
-            }
-            body.mobile-focus #monster-visuals span.text-[8px] {
-                font-size: 6px; /* Tiny timer text */
+                padding: 4px;
+                min-height: 80px;
+                flex-shrink: 0;
+                margin-bottom: 4px;
+                border: 1px solid #374151;
             }
 
-            /* 3. Compact Word & Definition Area */
+            /* Monster (Left Side) */
+            body.mobile-focus #monster-visuals {
+                width: 30%;
+                padding: 0;
+                min-height: 0;
+                display: flex !important;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            body.mobile-focus #monster-icon { font-size: 2rem; line-height: 1; margin: 0; }
+            body.mobile-focus .w-64 { width: 100%; height: 4px; margin-top: 4px; } /* Timer Bar */
+            body.mobile-focus #monster-hp-container { display: none; }
+            body.mobile-focus #fct-container { display: none; } /* Hide floating text to reduce clutter */
+
+            /* Word Area (Right Side: Def + Word) */
             body.mobile-focus #word-area {
-                padding: 4px;
-                background: transparent;
+                width: 70%;
+                padding: 0 0 0 8px;
                 border: none;
-                flex-grow: 1;
+                background: transparent;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
-                margin: 0;
             }
             
-            body.mobile-focus #btn-hear {
-                display: inline-flex;
-                padding: 4px 12px;
-                font-size: 10px;
-                margin-bottom: 6px;
-                height: auto;
-                background-color: rgba(30, 58, 138, 0.8);
-            }
-
-            body.mobile-focus #definition-text {
-                font-size: 0.75rem;
-                line-height: 1.2;
+            /* Rearrange Definition Area */
+            body.mobile-focus #word-area .w-full.text-center {
+                display: flex;
+                flex-direction: row-reverse; /* Hear button right, text left */
+                align-items: flex-start;
+                justify-content: space-between;
                 margin-bottom: 4px;
-                color: #bfdbfe; /* Brighter blue/white for readability */
-                display: -webkit-box;
-                -webkit-line-clamp: 3;
-                -webkit-box-orient: vertical;
+                text-align: left;
+            }
+            body.mobile-focus #btn-hear {
+                padding: 4px;
+                font-size: 12px;
+                border-radius: 4px;
+                margin: 0 0 0 4px;
+                flex-shrink: 0;
+            }
+            body.mobile-focus #btn-hear span { margin: 0; } /* Just icon or text */
+            body.mobile-focus #definition-text {
+                font-size: 0.7rem;
+                line-height: 1.1;
+                color: #9ca3af;
+                margin: 0;
+                max-height: 40px;
                 overflow: hidden;
             }
+            body.mobile-focus .text-blue-400 { display: none; } /* Hide 'DEFINITION' label */
 
+            /* The Word to Spell */
             body.mobile-focus #word-display {
-                font-size: 1.4rem;
-                margin-bottom: 8px;
-                min-height: 1.8rem;
-                letter-spacing: 0.15em;
-                color: #facc15;
+                font-size: 1.3rem;
+                min-height: 1.5rem;
+                margin: 4px 0;
+                text-align: center;
+                width: 100%;
             }
 
-            /* 4. Input Field */
+            /* 3. Input Field */
+            body.mobile-focus .w-full.max-w-md { width: 100%; margin-bottom: 4px; }
             body.mobile-focus #answer-input {
-                padding: 8px;
-                font-size: 16px; /* Prevent iOS zoom */
-                height: 40px;
-                margin-bottom: 4px;
-                background: rgba(0, 0, 0, 0.6);
+                height: 36px;
+                font-size: 16px;
+                padding: 0 10px;
+                border-color: #4b5563;
             }
 
-            /* 5. Compact Skills Bar */
+            /* 4. Skills Bar */
             body.mobile-focus #skills-area {
                 display: grid !important;
                 grid-template-columns: 1fr 1fr 1fr;
-                gap: 6px;
-                padding-top: 2px;
-                flex-shrink: 0;
+                gap: 4px;
+                padding: 0;
+                margin-top: auto; /* Push to bottom if space */
             }
             body.mobile-focus #skills-area button {
                 padding: 0;
-                height: 36px;
-                display: flex;
-                flex-direction: row; /* Horizontal icon + text */
-                justify-content: center;
-                align-items: center;
+                height: 32px;
+                flex-direction: row;
                 gap: 4px;
+                justify-content: center;
             }
-            body.mobile-focus #skills-area .text-xl {
-                font-size: 14px;
-                margin-bottom: 0;
-            }
-            body.mobile-focus #skills-area .pixel-font {
-                font-size: 9px;
-            }
-            body.mobile-focus #skills-area .text-gray-500 {
-                display: none; /* Hide mana cost text */
-            }
-            
-            /* Hide Floating Combat Text in Focus Mode to prevent clutter */
-            body.mobile-focus #fct-container { display: none; }
+            body.mobile-focus #skills-area .text-xl { font-size: 12px; margin: 0; }
+            body.mobile-focus #skills-area .pixel-font { font-size: 8px; }
+            body.mobile-focus #skills-area .text-gray-500 { display: none; }
         }
     </style>
 </head>
@@ -305,15 +297,19 @@
                 </div>
                 <div id="word-display" class="text-2xl md:text-4xl tracking-[0.15em] font-mono text-yellow-400 mb-4 min-h-[3rem] drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">_ _ _ _ _</div>
                 <div class="w-full max-w-md relative mb-2">
-                    <!-- UPDATED INPUT: Changed type to 'search' and added aria-autocomplete to force Android keyboards to behave -->
-                    <input type="search" id="answer-input" 
-                        autocomplete="off" 
-                        autocorrect="off" 
-                        autocapitalize="off" 
-                        spellcheck="false" 
-                        aria-autocomplete="none"
-                        class="w-full bg-black border-2 border-gray-600 text-white text-center text-xl p-3 rounded focus:outline-none focus:border-yellow-500 focus:shadow-[0_0_15px_rgba(234,179,8,0.3)] uppercase font-mono placeholder-gray-700 transition-colors"
-                        placeholder="TYPE SPELL HERE">
+                    <!-- FORM WRAPPER: Helps Android keyboards recognize 'Enter' as submit -->
+                    <form action="javascript:void(0);" onsubmit="game.checkAnswer(); return false;">
+                        <!-- INPUT HACKS: autocomplete="new-password" is the strongest signal to kill predictions on Android -->
+                        <input type="text" id="answer-input" 
+                            name="vocab_game_input_unique"
+                            autocomplete="new-password" 
+                            autocorrect="off" 
+                            autocapitalize="off" 
+                            spellcheck="false" 
+                            aria-autocomplete="none"
+                            class="w-full bg-black border-2 border-gray-600 text-white text-center text-xl p-3 rounded focus:outline-none focus:border-yellow-500 focus:shadow-[0_0_15px_rgba(234,179,8,0.3)] uppercase font-mono placeholder-gray-700 transition-colors"
+                            placeholder="TYPE SPELL HERE">
+                    </form>
                 </div>
                 <div id="feedback-msg" class="h-5 text-xs font-bold text-center tracking-wider"></div>
             </div>
@@ -324,19 +320,27 @@
             <button id="btn-reveal" class="group relative bg-gray-800 hover:bg-gray-700 border border-purple-900 p-2 rounded transition-all overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed">
                 <div class="absolute bottom-0 left-0 h-1 bg-purple-500 transition-all duration-300" style="width: 0%" id="cd-reveal"></div>
                 <div class="flex flex-col items-center">
-                    <span class="text-xl mb-1">👁️</span><span class="text-[10px] text-purple-300 font-bold pixel-font">REVEAL</span><span class="text-[10px] text-gray-500">25 MANA</span>
+                    <span class="text-xl mb-1">👁️</span>
+                    <span class="text-[10px] text-purple-300 font-bold pixel-font">REVEAL</span>
+                    <span class="text-[10px] text-gray-500">25 MANA</span>
                 </div>
             </button>
+
             <button id="btn-flash" class="group relative bg-gray-800 hover:bg-gray-700 border border-blue-900 p-2 rounded transition-all overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed">
                 <div class="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-300" style="width: 0%" id="cd-flash"></div>
                 <div class="flex flex-col items-center">
-                    <span class="text-xl mb-1">⚡</span><span class="text-[10px] text-blue-300 font-bold pixel-font">FLASH</span><span class="text-[10px] text-gray-500">40 MANA</span>
+                    <span class="text-xl mb-1">⚡</span>
+                    <span class="text-[10px] text-blue-300 font-bold pixel-font">FLASH</span>
+                    <span class="text-[10px] text-gray-500">40 MANA</span>
                 </div>
             </button>
+
             <button id="btn-freeze" class="group relative bg-gray-800 hover:bg-gray-700 border border-cyan-900 p-2 rounded transition-all overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed">
                 <div class="absolute bottom-0 left-0 h-1 bg-cyan-500 transition-all duration-300" style="width: 0%" id="cd-freeze"></div>
                 <div class="flex flex-col items-center">
-                    <span class="text-xl mb-1">❄️</span><span class="text-[10px] text-cyan-300 font-bold pixel-font">FREEZE</span><span class="text-[10px] text-gray-500">50 MANA</span>
+                    <span class="text-xl mb-1">❄️</span>
+                    <span class="text-[10px] text-cyan-300 font-bold pixel-font">FREEZE</span>
+                    <span class="text-[10px] text-gray-500">50 MANA</span>
                 </div>
             </button>
         </div>
@@ -479,13 +483,13 @@
                 };
                 
                 this.lastFrameTime = 0;
+                this.monsterState = { maxHp: 1, hp: 1, timer: 0, timeLimit: 15000, isBoss: false, frozen: false };
+                this.lastFrameTime = 0;
                 this.gameActive = false;
                 this.animationFrameId = null;
 
                 this.inputEl = document.getElementById('answer-input');
-                this.inputEl.addEventListener('keyup', (e) => {
-                    if(e.key === 'Enter') this.checkAnswer();
-                });
+                // REMOVED: this.inputEl.addEventListener('keyup', ...) to prevent double firing with form submit
 
                 // ADDED: Mobile Focus Mode
                 this.inputEl.addEventListener('focus', () => {
@@ -575,72 +579,90 @@
             }
 
             saveScore() {
-                try {
-                    const scores = JSON.parse(localStorage.getItem('vocabDungeonScores') || '[]');
-                    scores.push({
-                        name: this.playerName,
-                        year: this.playerYear,
-                        score: this.score,
-                        floor: this.currentIndex + 1,
-                        level: this.level,
-                        timestamp: new Date().toISOString()
-                    });
-                    localStorage.setItem('vocabDungeonScores', JSON.stringify(scores));
-                    console.log("Score saved locally!");
-                } catch(e) {
-                    console.error("Error saving score", e);
+                // Mode Switch: Online vs Offline
+                if (GOOGLE_SCRIPT_URL) {
+                    console.log("Uploading score to Google Sheet...");
+                    fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Important for Google Apps Script
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: this.playerName,
+                            year: this.playerYear,
+                            score: this.score,
+                            floor: this.currentIndex + 1
+                        })
+                    }).then(() => console.log("Score uploaded"))
+                      .catch(err => console.error("Upload failed", err));
+                } else {
+                    // Fallback to Local Storage
+                    try {
+                        const scores = JSON.parse(localStorage.getItem('vocabDungeonScores') || '[]');
+                        scores.push({
+                            name: this.playerName,
+                            year: this.playerYear,
+                            score: this.score,
+                            floor: this.currentIndex + 1,
+                            timestamp: new Date().toISOString()
+                        });
+                        localStorage.setItem('vocabDungeonScores', JSON.stringify(scores));
+                        console.log("Score saved locally!");
+                    } catch(e) { console.error("Error saving local score", e); }
                 }
             }
 
             showLeaderboard() {
                 document.getElementById('leaderboard-modal').classList.remove('hidden');
                 const content = document.getElementById('leaderboard-content');
-                content.innerHTML = '<p class="text-gray-500 text-center mt-10">Consulting ancient records...</p>';
+                content.innerHTML = '<p class="text-gray-500 text-center mt-10">Summoning spirits...</p>';
 
-                try {
-                    let scores = JSON.parse(localStorage.getItem('vocabDungeonScores') || '[]');
-                    
-                    // Sort Descending
-                    scores.sort((a, b) => b.score - a.score);
-                    const top10 = scores.slice(0, 10);
-
-                    content.innerHTML = `
-                        <table class="w-full text-left text-xs md:text-sm">
-                            <thead class="text-gray-500 border-b border-gray-700">
-                                <tr>
-                                    <th class="p-2">RANK</th>
-                                    <th class="p-2">HERO</th>
-                                    <th class="p-2">YEAR</th>
-                                    <th class="p-2 text-right">SCORE</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-gray-300">
-                                ${top10.map((s, i) => `
-                                    <tr class="border-b border-gray-800 hover:bg-gray-800/50">
-                                        <td class="p-2 text-yellow-500 font-bold">#${i+1}</td>
-                                        <td class="p-2 font-bold text-white">${s.name}</td>
-                                        <td class="p-2">${s.year}</td>
-                                        <td class="p-2 text-right font-mono text-green-400">${s.score}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-
-                    if(scores.length === 0) {
-                        content.innerHTML = '<p class="text-gray-500 text-center mt-10">No local heroes yet. Be the first!</p>';
+                if (GOOGLE_SCRIPT_URL) {
+                    title.innerText = "HALL OF FAME (GLOBAL)";
+                    fetch(GOOGLE_SCRIPT_URL + "?action=getScores")
+                    .then(response => {
+                        if (!response.ok) throw new Error("Network response was not ok");
+                        return response.json();
+                    })
+                    .then(data => this.renderLeaderboard(data))
+                    .catch(err => {
+                        console.error("Fetch error:", err);
+                        content.innerHTML = `<p class="text-red-500 text-center mt-10">Connection to the spirits failed.<br><br><span class="text-xs text-gray-500">Error: ${err.message}<br>Check console for details.</span></p>`;
+                    });
+                } else {
+                    title.innerText = "HALL OF FAME (LOCAL)";
+                    try {
+                        let scores = JSON.parse(localStorage.getItem('vocabDungeonScores') || '[]');
+                        this.renderLeaderboard(scores);
+                    } catch (e) {
+                        content.innerHTML = '<p class="text-red-500 text-center mt-10">Failed to read ancient scrolls.</p>';
                     }
-
-                } catch (e) {
-                    console.error(e);
-                    content.innerHTML = '<p class="text-red-500 text-center mt-10">Failed to read ancient scrolls.</p>';
                 }
             }
-
-            hideLeaderboard() {
-                document.getElementById('leaderboard-modal').classList.add('hidden');
+            
+            renderLeaderboard(scores) {
+                const content = document.getElementById('leaderboard-content');
+                scores.sort((a, b) => b.score - a.score);
+                const top10 = scores.slice(0, 10);
+                content.innerHTML = `
+                    <table class="w-full text-left text-xs md:text-sm">
+                        <thead class="text-gray-500 border-b border-gray-700">
+                            <tr><th class="p-2">RANK</th><th class="p-2">HERO</th><th class="p-2">YEAR</th><th class="p-2 text-right">SCORE</th></tr>
+                        </thead>
+                        <tbody class="text-gray-300">
+                            ${top10.map((s, i) => `
+                                <tr class="border-b border-gray-800 hover:bg-gray-800/50">
+                                    <td class="p-2 text-yellow-500 font-bold">#${i+1}</td>
+                                    <td class="p-2 font-bold text-white">${s.name}</td>
+                                    <td class="p-2">${s.year}</td>
+                                    <td class="p-2 text-right font-mono text-green-400">${s.score}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+                if(scores.length === 0) content.innerHTML = '<p class="text-gray-500 text-center mt-10">No heroes have fallen yet.</p>';
             }
 
+            hideLeaderboard() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
             getWordForLevel() {
                 let sourceArray;
                 if (this.level === 1) sourceArray = commonWords;
@@ -652,6 +674,7 @@
 
                 // If we have used every word in this list, recycle them (allow repeats)
                 if (available.length === 0) {
+                    // Ideally we only clear the words from *this* list from the set
                     sourceArray.forEach(item => this.seenWords.delete(item.w));
                     available = sourceArray;
 
@@ -826,6 +849,10 @@
                 if(!this.gameActive) return;
 
                 const userGuess = this.inputEl.value.trim().toLowerCase();
+                
+                // Guard clause: Ignore empty submissions (prevents accidental double-penalties)
+                if (!userGuess) return;
+
                 const feedback = document.getElementById('feedback-msg');
                 
                 if (userGuess === this.correctWord) {
@@ -864,6 +891,9 @@
                     
                     this.inputEl.classList.add('shake');
                     setTimeout(() => this.inputEl.classList.remove('shake'), 400);
+                    
+                    // Clear input on wrong answer so they can try again immediately
+                    this.inputEl.value = "";
                 }
                 this.updateStatsUI();
             }
