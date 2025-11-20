@@ -61,6 +61,7 @@
         <h2 class="text-sm text-purple-400 mb-6 pixel-font">SHARED EDITION</h2>
         
         <!-- Registration Form -->
+        
         <div class="mb-6 space-y-3 text-left">
             <div>
                 <label class="text-xs text-gray-400 font-bold uppercase ml-1">Hero Name</label>
@@ -285,7 +286,31 @@
                     document.getElementById('setup-warning').classList.remove('hidden');
                 }
             }
+            function containsProfanity(text) {
+                if (!text) return false;
+            
+                const lowerText = text.toLowerCase();
+            
+            // Check for exact words or words contained within string
+            // Using regex with word boundaries (\b) prevents blocking words like "class" (contains "ass")
+            // However, for a game username, we might want to be stricter with partial matches or leetspeak.
+            
+            // 1. Strict Word Boundary Check (Safer, less false positives)
+                for (let word of PROFANITY_LIST) {
+                // This regex checks for the word with boundaries OR if the word is the entire string
+                    const regex = new RegExp(`\\b${word}\\b`, 'i');
+                    if (regex.test(lowerText)) return true;
+                }
 
+            // 2. Simple inclusion check for very specific, highly offensive words 
+            // where we don't care about false positives (e.g., nobody has "fuck" inside a normal name usually)
+                const strictFilter = ['fuck', 'shit', 'cunt', 'nigger', 'fag'];
+                for (let word of strictFilter) {
+                    if (lowerText.includes(word)) return true;
+                }
+
+                return false;
+            }
             validateAndStart() {
                 const nameInput = document.getElementById('player-name');
                 const yearInput = document.getElementById('player-year');
@@ -295,6 +320,10 @@
                     errorMsg.classList.remove('opacity-0');
                     errorMsg.classList.add('shake');
                     setTimeout(() => errorMsg.classList.remove('shake'), 400);
+                    return;
+                }
+                if (containsProfanity(name)) {
+                    showError("That name is not allowed.");
                     return;
                 }
                 this.playerName = nameInput.value.trim();
@@ -618,4 +647,5 @@
         const game = new VocabDungeon();
     </script>
 </body>
+
 </html>
